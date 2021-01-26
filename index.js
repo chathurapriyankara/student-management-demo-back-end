@@ -48,6 +48,11 @@ app.delete('/delete/:id',async(req,res)=>{
     res.send("Student Removed.");
 });
 
+app.post('/login', async (req, res) => {
+    //Need to connect this with the database.
+   await req.body.username['username'] === 'ibm' && req.body.password['password'] ==='ibm' ? res.send({login:'success'}) : res.send({login:'fail'})
+});
+
 app.listen(3001, ()=>{
     console.log("Server is listening");
 });
