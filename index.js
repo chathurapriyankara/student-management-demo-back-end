@@ -4,6 +4,10 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const StudentModel = require('./models/Student');
 const UserModel = require('./models/User');
+const config = require('./config/auth.config');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const {verifyToken} = require('./authJwt');
 
 app.use(cors());
 app.use(express.json());
@@ -14,18 +18,21 @@ mongoose.connect('mongodb+srv://cpriyankara:admin@cluster0.otque.mongodb.net/stu
 });
 
 app.post('/insert', async (req, res) => {
+    // bcrypt.hashSync(req.body.password, 8)
     const student = new StudentModel({name: req.body.name, age: req.body.age, degree: req.body.degree});
     await student.save();
     res.send('Inserted data');
 });
 
-app.get('/get-all', async (req, res) => {
-    await StudentModel.find({}, (err, result) => {
-        if (err) {
-            res.send(err);
-        } else {
-            res.send(result);
-        }
+app.get('/get-all', (req, res) => {
+    verifyToken(req,res, async () => {
+        await StudentModel.find({}, (err, result) => {
+            if (err) {
+                res.send(err);
+            } else {
+                res.send(result);
+            }
+        });
     });
 });
 
@@ -52,12 +59,35 @@ app.delete('/delete/:id', async (req, res) => {
 app.post('/login', async (req, res) => {
     const uname = req.body.username['username'];
     const pwd = req.body.password['password'];
-    await UserModel.find({username: uname, password: pwd}, (err, result) => {
-        if (result.length === 1) {
-            res.send({login: 'success'});
-        } else {
-            res.send({login: 'fail'})
+    await UserModel.findOne({username: uname}, (err, user) => {
+        if(err) {
+            return res.status(500).send({message:err});
         }
+        if(!user) {
+            return res.status(404).send({message:'User not found.'});
+        }
+        let isPasswordValid = bcrypt.compareSync(
+            user.password,
+            pwd
+        );
+        // if(!isPasswordValid) {
+        //     return res.status(401).send({
+        //         token:null,
+        //         message: 'Invalid Password!'
+        //     });
+        // }
+        let token = jwt.sign({id:user._id}, config.secret, {
+           expiresIn:86400
+        });
+        res.status(200).send({
+            id:user._id,
+            token:token
+        });
+        // if (result.length === 1) {
+        //     res.send({login: 'success'});
+        // } else {
+        //     res.send({login: 'fail'})
+        // }
     });
 });
 
